@@ -21,7 +21,7 @@ from typing import Optional
 import config
 from common.logging_utils import CsvLog
 from common.protocol import LineBuffer, ProtocolError, decode_line, encode, make_envelope
-from common.security import KeyStore
+from common.security import KeyStore, ReplayCache, TokenBucket, attach_sig
 from server.controller import ControllerConfig, SignalController
 
 SERVER_ID = "SERVER"
@@ -50,6 +50,7 @@ class Session:
         self.peer = f"{addr[0]}:{addr[1]}"
         self.sid: Optional[str] = None
         self.role: Optional[str] = None
+        self.bucket = TokenBucket()
         self.outq: queue.Queue = queue.Queue(maxsize=config.SEND_QUEUE_MAX)
         self.closed = False
         self.accepted = 0  # messages that passed every check and were dispatched
@@ -104,6 +105,7 @@ class IntersectionServer:
         self.time_scale = max(0.1, float(time_scale))
         self._t0 = time.time()
         self.controller = SignalController(signal_mode, controller_cfg, now=self._t0)
+        self.replay = ReplayCache()
         self.sessions: set[Session] = set()
         self.vehicles: dict[str, VehicleRecord] = {}
         self.seq = 0
@@ -245,10 +247,11 @@ class IntersectionServer:
 
     def _out(self, msg_type: str, payload: dict, max_bytes: int = config.MAX_MSG_BYTES) -> bytes:
         env = make_envelope(msg_type, SERVER_ID, payload)
-        # TODO(security): sign outgoing messages with the server key
+        if self.security:
+            attach_sig(env, self.keys.server_key)
         return encode(env, max_bytes)
 
-    # ------------------------------------------------------------ errors
+    # ------------------------------------------------------------ security
     def _reject(self, s: Session, env: Optional[dict], code: str, reason: str) -> None:
         sender = env.get("sender", "?") if isinstance(env, dict) else (s.sid or "?")
         mtype = env.get("type", "?") if isinstance(env, dict) else "?"
@@ -260,6 +263,35 @@ class IntersectionServer:
                                          "reason": code, "detail": reason})
         s.send(self._out("ERROR", {"code": code, "reason": reason}))
 
+    def _check_security(self, s: Session, env: dict, now: float) -> Optional[str]:
+        """Return the role proven by the signature, or None after rejecting the message."""
+        if not s.bucket.allow():
+            self._reject(s, env, "RATE_LIMITED", "too many messages")
+            if s.bucket.too_many_violations():
+                self._log_event("RATE_LIMIT_DISCONNECT", None, env["sender"], s.peer)
+                self.close_session(s, "rate limit violations")
+            return None
+        proven = self.keys.identify(env)
+        if proven is None:
+            self._reject(s, env, "BAD_SIGNATURE", "signature missing or invalid")
+            return None
+        with self.lock:
+            fresh = self.replay.check(env["sender"], env["nonce"], env["ts"], now)
+        if fresh:
+            self._reject(s, env, fresh, "timestamp outside window" if fresh == "STALE"
+                         else "nonce already used")
+            return None
+        claims_emergency = (env["type"] in ("EMERGENCY_REQUEST", "EMERGENCY_CLEAR")
+                            or env["payload"].get("role") == "emergency"
+                            or env["sender"] in self.keys.emergency_keys)
+        if claims_emergency and proven != "emergency":
+            self._reject(s, env, "UNAUTHORISED", "emergency role not proven by key")
+            return None
+        if s.sid is not None and env["sender"] != s.sid:
+            self._reject(s, env, "UNAUTHORISED", "sender does not match session")
+            return None
+        return proven
+
     # ------------------------------------------------------------ messages
     def handle_line(self, s: Session, line: bytes) -> None:
         """Validate, authenticate and dispatch one received line."""
@@ -270,7 +302,10 @@ class IntersectionServer:
             self._reject(s, None, e.code, e.reason)
             return
         proven = None
-        # TODO(security): rate limit, HMAC verification, freshness/replay and authorisation
+        if self.security:
+            proven = self._check_security(s, env, now)
+            if proven is None:
+                return
         s.accepted += 1
         mtype, p = env["type"], env["payload"]
         if mtype == "REGISTER":
@@ -308,6 +343,8 @@ class IntersectionServer:
     def _register(self, s: Session, env: dict, proven: Optional[str]) -> None:
         p = env["payload"]
         role = p["role"]
+        if self.security and proven == "emergency":
+            role = "emergency"  # the key decides, not the role field
         sid = env["sender"]
         old_session = None
         with self.lock:
@@ -351,7 +388,7 @@ class IntersectionServer:
     # ------------------------------------------------------------ control loop
     def _control_loop(self) -> None:
         period = 1.0 / config.CONTROL_HZ
-        next_signal = next_snap = 0.0
+        next_signal = next_snap = next_purge = 0.0
         while self.running:
             now = time.time()
             with self.lock:
@@ -373,6 +410,10 @@ class IntersectionServer:
             if now >= next_snap:
                 self._send_snapshots(now)
                 next_snap = now + 1.0 / config.SNAPSHOT_HZ
+            if now >= next_purge:
+                with self.lock:
+                    self.replay.purge(now)
+                next_purge = now + 1.0
             time.sleep(max(0.0, period - (time.time() - now)))
 
     def _detection(self) -> tuple[dict, dict]:
