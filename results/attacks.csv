@@ -1,0 +1,15 @@
+scenario,security,attempts,accepted,rejected,rejection_reasons,preemption_triggered,notes
+A1,off,4,4,0,-,True,fleet-key-signed and unsigned attempts
+A1,on,4,0,4,BAD_SIGNATURE:2;UNAUTHORISED:2,False,fleet-key-signed and unsigned attempts
+A2,off,3,3,0,-,True,replayed 3 captured messages >= 10s old
+A2,on,2,0,2,STALE:2,False,replayed 2 captured messages >= 10s old
+A2b,off,2,2,0,-,n/a,replayed within the freshness window (real ambulance pre-emption already active)
+A2b,on,2,0,2,REPLAY:1;STALE:1,n/a,replayed within the freshness window (real ambulance pre-emption already active)
+A3,off,3,3,0,-,True,"approach rewritten to N, original sig kept"
+A3,on,2,0,2,BAD_SIGNATURE:2,False,"approach rewritten to N, original sig kept"
+A4,off,2,2,0,-,n/a,client sees N light = green after injection
+A4,on,2,0,2,BAD_SIGNATURE:2,n/a,client sees N light = red after injection
+A5,off,2000,2000,0,-,n/a,normal clients p50/p95 ms baseline 0.62/4.54 vs during flood 0.57/1.86; lost 0; flooder delivered 2000/2000 in 0.00s; server disconnected flooder: no
+A5,on,2000,39,3,RATE_LIMITED:3,n/a,normal clients p50/p95 ms baseline 0.71/3.35 vs during flood 0.83/1.37; lost 0; flooder delivered 2000/2000 in 0.00s; server disconnected flooder: rate limit violations; 1958 flood messages never processed (connection closed)
+A5s,off,1444832,1444832,0,-,n/a,normal clients p50/p95 ms baseline 0.62/1.45 vs during flood 11.36/39.53; lost 0; flooder delivered 1444832/1444832 in 10.00s; server disconnected flooder: no
+A5s,on,1066,39,3,RATE_LIMITED:3,n/a,normal clients p50/p95 ms baseline 0.71/1.59 vs during flood 0.57/2.12; lost 0; flooder delivered 1066/1066 in 0.00s; server disconnected flooder: rate limit violations; 1024 flood messages never processed (connection closed)
