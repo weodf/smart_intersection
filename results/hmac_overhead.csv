@@ -1,0 +1,7 @@
+operation,mean_us,ops_per_s
+sign,9.957,100427
+verify,10.488,95350
+encode+decode (unsigned),11.373,87930
+full round trip unsigned (make+encode+decode),12.623,79217
+full round trip signed (make+sign+encode+decode+verify),38.787,25782
+security overhead per message (signed - unsigned),26.164,38220
