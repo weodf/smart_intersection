@@ -1,0 +1,7 @@
+scenario,mode,runs,vehicles_crossed_mean,vehicles_crossed_sd,avg_wait_s_mean,avg_wait_s_sd,p95_wait_s_mean,p95_wait_s_sd,max_wait_s_mean,max_wait_s_sd,avg_queue_mean,avg_queue_sd,max_queue_mean,max_queue_sd,throughput_vph_mean,throughput_vph_sd
+balanced_low,fixed,5,555.0,27.009,10.641,0.605,33.56,0.378,36.82,0.084,3.558,0.187,9.2,1.095,1189.286,57.877
+balanced_low,adaptive,5,555.8,30.012,6.409,0.693,25.08,2.366,47.6,1.712,2.126,0.334,8.6,3.435,1191.0,64.311
+balanced_high,fixed,5,1115.8,28.03,10.744,0.39,33.86,0.445,37.08,0.045,7.232,0.401,15.0,1.414,2391.0,60.065
+balanced_high,adaptive,5,1122.6,28.702,12.978,0.236,43.9,0.557,51.68,0.295,8.741,0.375,17.2,1.643,2405.571,61.504
+asymmetric,fixed,5,830.4,30.583,11.377,0.47,34.3,0.632,39.88,4.599,5.753,0.396,18.4,3.13,1779.429,65.534
+asymmetric,adaptive,5,829.8,31.972,6.492,0.385,30.56,2.651,49.04,0.27,3.289,0.285,12.8,1.304,1778.143,68.511
