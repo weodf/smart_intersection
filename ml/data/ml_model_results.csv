@@ -1,0 +1,9 @@
+target_mode,model,cv5_mae_mean_s,cv5_mae_sd_s,test_mae_s,test_rmse_s,test_r2
+fixed,Mean baseline,0.574,0.022,0.545,0.716,-0.0
+fixed,Linear regression,0.451,0.017,0.452,0.565,0.377
+fixed,Random forest,0.447,0.009,0.447,0.564,0.38
+fixed,Neural network (MLP),0.5,0.02,0.473,0.608,0.278
+adaptive,Mean baseline,2.125,0.114,2.058,2.519,-0.005
+adaptive,Linear regression,0.619,0.016,0.692,0.843,0.888
+adaptive,Random forest,0.64,0.01,0.65,0.812,0.896
+adaptive,Neural network (MLP),0.668,0.074,0.612,0.754,0.91

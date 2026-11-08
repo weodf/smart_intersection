@@ -1,0 +1,7 @@
+strategy,correct_choice_pct,mean_avg_wait_s,scenarios_adaptive_chosen,mean_regret_vs_oracle_s
+Always fixed-time,-,11.07,-,1.68
+Always adaptive,-,9.774,-,0.383
+ML selector (Linear regression),85.0,9.482,147,0.092
+ML selector (Random forest),85.0,9.476,143,0.086
+ML selector (Neural network (MLP)),84.0,9.488,137,0.097
+Oracle (best mode known),100.0,9.39,141,0.0
